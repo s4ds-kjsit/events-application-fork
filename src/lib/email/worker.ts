@@ -4,6 +4,7 @@ import { db } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email/send";
 import { renderEmail, type TemplateName, type TemplatePayload } from "@/lib/email/templates";
 import { WHATSAPP_ICON_PNG } from "@/lib/email/assets";
+import { generateCertificatePdf } from "@/lib/certificates/generate";
 
 /**
  * Drains the email queue once.
@@ -20,8 +21,11 @@ const MAX_ATTEMPTS = 4;
 
 export type DrainResult = { claimed: number; sent: number; failed: number };
 
-export async function processEmailQueue(batch = 5): Promise<DrainResult> {
-  const { data: jobs, error } = await db.rpc("claim_email_jobs", { p_limit: batch });
+export async function processEmailQueue(batch = 5, includeCertificates = false): Promise<DrainResult> {
+  const { data: jobs, error } = await db.rpc("claim_email_jobs", { 
+    p_limit: batch, 
+    p_include_certificates: includeCertificates 
+  });
 
   if (error) throw error;
   if (!jobs?.length) return { claimed: 0, sent: 0, failed: 0 };
@@ -34,15 +38,21 @@ export async function processEmailQueue(batch = 5): Promise<DrainResult> {
       const payload = job.payload as unknown as TemplatePayload;
       const { subject, html, text } = renderEmail(job.template as TemplateName, payload);
 
-      // The approval email embeds the QR so it works without opening a browser,
-      // and the WhatsApp mark on the group button next to it.
-      const attachments =
-        job.template === "approved" && payload.code
-          ? [
-              { filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" },
-              { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
-            ]
-          : undefined;
+      let attachments;
+      if (job.template === "approved" && payload.code) {
+        attachments = [
+          { filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" },
+          { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
+        ];
+      } else if (job.template === "certificate") {
+        attachments = [
+          {
+            filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
+            content: await generateCertificatePdf(payload.name),
+            contentType: "application/pdf",
+          },
+        ];
+      }
 
       await sendEmail({ to: job.to, subject, html, text, attachments });
 
@@ -94,4 +104,59 @@ async function qrPng(payload: TemplatePayload): Promise<Buffer> {
     margin: 1,
     errorCorrectionLevel: "M",
   });
+}
+
+/**
+ * Sends a single specific email job by its ID.
+ */
+export async function sendEmailJob(id: string): Promise<boolean> {
+  const { data: job, error: fetchError } = await db
+    .from("email_jobs")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !job) throw new Error("Job not found");
+  if (job.status === "SENT") return true;
+
+  try {
+    const payload = job.payload as unknown as TemplatePayload;
+    const { subject, html, text } = renderEmail(job.template as TemplateName, payload);
+
+    let attachments;
+    if (job.template === "approved" && payload.code) {
+      attachments = [
+        { filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" },
+        { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
+      ];
+    } else if (job.template === "certificate") {
+      attachments = [
+        {
+          filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
+          content: await generateCertificatePdf(payload.name),
+          contentType: "application/pdf",
+        },
+      ];
+    }
+
+    await sendEmail({ to: job.to, subject, html, text, attachments });
+
+    await db
+      .from("email_jobs")
+      .update({ status: "SENT", sent_at: new Date().toISOString(), last_error: null })
+      .eq("id", job.id);
+
+    return true;
+  } catch (sendError) {
+    const message = sendError instanceof Error ? sendError.message : String(sendError);
+    await db
+      .from("email_jobs")
+      .update({
+        status: "FAILED",
+        last_error: message.slice(0, 500),
+        locked_at: null,
+      })
+      .eq("id", job.id);
+    return false;
+  }
 }
