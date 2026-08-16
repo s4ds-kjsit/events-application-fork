@@ -6,7 +6,9 @@ import { getFormFields } from "@/config/forms";
 import { getPaymentProofUrl } from "@/lib/cloudinary";
 import { formatEventDates } from "@/lib/events";
 import { Badge } from "@/components/ui/badge";
+import { summariseAnswers, type Slice } from "@/lib/responses-summary";
 import { RegistrationsTable, type Row } from "./RegistrationsTable";
+import { ResponsesSummary } from "./ResponsesSummary";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,43 @@ type Filter = (typeof FILTERS)[number]["key"];
 
 function parseFilter(value: string | undefined): Filter {
   return FILTERS.some((f) => f.key === value) ? (value as Filter) : "PENDING";
+}
+
+/** Longest run of days the sign-ups chart draws. Older days fold into one row. */
+const SIGNUP_DAYS = 14;
+
+/**
+ * Sign-ups grouped by calendar day in IST — the timezone everyone reading this
+ * page is standing in, and the one an event "day" is measured in.
+ */
+function signupsPerDay(rows: { created_at: string }[]): Slice[] {
+  const key = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
+  const label = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+  });
+
+  const days = new Map<string, { label: string; count: number }>();
+
+  for (const row of rows) {
+    const when = new Date(row.created_at);
+    const id = key.format(when);
+    const seen = days.get(id);
+    if (seen) seen.count += 1;
+    else days.set(id, { label: label.format(when), count: 1 });
+  }
+
+  const ordered = [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, day]) => day);
+
+  if (ordered.length <= SIGNUP_DAYS) return ordered;
+
+  // Say what was dropped rather than quietly showing a partial timeline.
+  const older = ordered.slice(0, ordered.length - SIGNUP_DAYS);
+  return [
+    { label: `${older.length} earlier days`, count: older.reduce((sum, d) => sum + d.count, 0) },
+    ...ordered.slice(-SIGNUP_DAYS),
+  ];
 }
 
 type Params = { params: Promise<{ slug: string }>; searchParams: Promise<{ status?: string }> };
@@ -54,9 +93,11 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
 
   if (filter !== "ALL") query = query.eq("status", filter);
 
+  // The second query is every registration for the event: the tab counts and
+  // the response summary both describe the whole form, not the filtered view.
   const [{ data: registrations, error }, { data: allForCounts }] = await Promise.all([
     query,
-    db.from("registrations").select("status").eq("event_id", event.id),
+    db.from("registrations").select("status, created_at, answers").eq("event_id", event.id),
   ]);
 
   if (error) throw error;
@@ -81,7 +122,17 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
     proof_url: row.payment_proof_url ? getPaymentProofUrl(row.payment_proof_url) : null,
   }));
 
-  const fieldKeys = getFormFields(event.form_key).map((field) => field.key);
+  const fields = getFormFields(event.form_key);
+  const fieldKeys = fields.map((field) => field.key);
+
+  const summary = summariseAnswers(
+    fields,
+    (allForCounts ?? []).map((row) => ({
+      answers: (row.answers ?? {}) as Record<string, unknown>,
+    })),
+  );
+
+  const perDay = signupsPerDay(allForCounts ?? []);
 
   return (
     <div className="space-y-6">
@@ -144,6 +195,8 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
           </Link>
         ))}
       </nav>
+
+      <ResponsesSummary fields={summary} perDay={perDay} total={counts.ALL ?? 0} />
 
       <RegistrationsTable rows={rows} fields={fieldKeys} />
     </div>

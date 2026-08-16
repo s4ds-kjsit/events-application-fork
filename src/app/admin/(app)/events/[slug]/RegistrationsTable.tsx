@@ -36,6 +36,12 @@ const REJECT_REASONS = [
   },
 ] as const;
 
+/**
+ * fetch() only rejects when nothing reached the server — offline, or the tab
+ * cancelled the request. Say that plainly, and release the row either way.
+ */
+const offline = "Couldn't reach the server. Check your connection and try again.";
+
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   APPROVED: "default",
   PENDING: "secondary",
@@ -61,11 +67,18 @@ export function RegistrationsTable({ rows, fields }: { rows: Row[]; fields: stri
     setBusyId(id);
     setError(null);
 
-    const response = await fetch(`/api/admin/registrations/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, reason }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`/api/admin/registrations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, reason }),
+      });
+    } catch {
+      setError(offline);
+      setBusyId(null);
+      return;
+    }
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -87,7 +100,14 @@ export function RegistrationsTable({ rows, fields }: { rows: Row[]; fields: stri
     setBusyId(id);
     setError(null);
 
-    const response = await fetch(`/api/admin/registrations/${id}`, { method: "DELETE" });
+    let response: Response;
+    try {
+      response = await fetch(`/api/admin/registrations/${id}`, { method: "DELETE" });
+    } catch {
+      setError(offline);
+      setBusyId(null);
+      return;
+    }
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
