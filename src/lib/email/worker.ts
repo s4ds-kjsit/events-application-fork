@@ -48,7 +48,9 @@ export async function processEmailQueue(batch = 5, includeCertificates = false):
         attachments = [
           {
             filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
-            content: await generateCertificatePdf(payload.name),
+            content: Buffer.from(
+              await generateCertificatePdf(payload.name, { eventTitle: payload.event_title }),
+            ),
             contentType: "application/pdf",
           },
         ];
@@ -133,7 +135,9 @@ export async function sendEmailJob(id: string): Promise<boolean> {
       attachments = [
         {
           filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
-          content: await generateCertificatePdf(payload.name),
+          content: Buffer.from(
+            await generateCertificatePdf(payload.name, { eventTitle: payload.event_title }),
+          ),
           contentType: "application/pdf",
         },
       ];
