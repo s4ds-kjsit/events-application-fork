@@ -35,14 +35,18 @@ export function ResponsesSummary({
   fields,
   perDay,
   total,
+  scope,
 }: {
   fields: FieldSummary[];
   /** Sign-ups per day, oldest first. Shown even when the form asks nothing extra. */
   perDay: Slice[];
-  /** Every registration for the event, whatever the status filter is showing. */
+  /** Registrations in the selected status tab — the denominator for everything here. */
   total: number;
+  /** Label of the selected status tab, so the numbers say what they are counting. */
+  scope: string;
 }) {
   const [open, setOpen] = useState(false);
+  const everyone = scope === "All";
 
   return (
     <div className="space-y-4">
@@ -55,15 +59,29 @@ export function ResponsesSummary({
         <ChartPie className="size-4" />
         {open ? "Hide summary" : "Summary"}
         <span className="tabular-nums opacity-60">{total}</span>
+        {everyone ? null : (
+          <span className="text-muted-foreground">· {scope.toLowerCase()}</span>
+        )}
       </Button>
 
       {open ? (
         total === 0 ? (
           <p className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-            No registrations yet, so there is nothing to summarise.
+            {everyone
+              ? "No registrations yet, so there is nothing to summarise."
+              : `No registrations in ${scope.toLowerCase()}, so there is nothing to summarise.`}
           </p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
+            <p className="text-sm text-muted-foreground lg:col-span-2">
+              Counting the{" "}
+              <span className="font-medium text-foreground">
+                {total} {everyone ? "registration" : scope.toLowerCase()}
+                {everyone && total !== 1 ? "s" : ""}
+              </span>{" "}
+              in this tab. Switch tabs above to summarise a different set.
+            </p>
+
             <Card title="Sign-ups per day" subtitle={`${total} in total`}>
               <BarChart slices={perDay} total={total} />
             </Card>

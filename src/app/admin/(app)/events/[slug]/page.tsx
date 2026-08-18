@@ -93,8 +93,8 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
 
   if (filter !== "ALL") query = query.eq("status", filter);
 
-  // The second query is every registration for the event: the tab counts and
-  // the response summary both describe the whole form, not the filtered view.
+  // The second query is every registration for the event: the tab counts need
+  // the whole set, and the summary slices it back down to the selected tab.
   const [{ data: registrations, error }, { data: allForCounts }] = await Promise.all([
     query,
     db.from("registrations").select("status, created_at, answers").eq("event_id", event.id),
@@ -125,14 +125,18 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
   const fields = getFormFields(event.form_key);
   const fieldKeys = fields.map((field) => field.key);
 
+  // The summary answers "what did the people in *this* tab say", so it reads the
+  // same slice of registrations the table below it is showing.
+  const inScope = (allForCounts ?? []).filter((row) => filter === "ALL" || row.status === filter);
+
   const summary = summariseAnswers(
     fields,
-    (allForCounts ?? []).map((row) => ({
+    inScope.map((row) => ({
       answers: (row.answers ?? {}) as Record<string, unknown>,
     })),
   );
 
-  const perDay = signupsPerDay(allForCounts ?? []);
+  const perDay = signupsPerDay(inScope);
 
   return (
     <div className="space-y-6">
@@ -196,7 +200,12 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
         ))}
       </nav>
 
-      <ResponsesSummary fields={summary} perDay={perDay} total={counts.ALL ?? 0} />
+      <ResponsesSummary
+        fields={summary}
+        perDay={perDay}
+        total={inScope.length}
+        scope={FILTERS.find((f) => f.key === filter)!.label}
+      />
 
       <RegistrationsTable rows={rows} fields={fieldKeys} />
     </div>

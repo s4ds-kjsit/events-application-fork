@@ -3,10 +3,10 @@ import type { FieldDef } from "@/lib/form-types";
 /**
  * Turns raw `registrations.answers` into the shape the summary charts render.
  *
- * This runs on the server over EVERY registration for the event, not the rows
- * currently on screen — "what did people answer" is a question about the whole
- * form, and a summary that moved every time you clicked a status tab would be
- * lying about what it counts.
+ * This runs on the server over the registrations in the selected status tab, so
+ * "what did people answer" can be asked of the approved crowd, the ones still
+ * needing review, or everyone. The caller decides the slice; the label on screen
+ * names it, so the numbers never look like they cover more than they do.
  */
 
 export type Slice = { label: string; count: number };
