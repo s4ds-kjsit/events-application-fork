@@ -148,7 +148,7 @@ export const FORMS = {
       type: "text",
       required: true,
       placeholder: "e.g. Team Trimbak",
-      hint: "Shown on your certificates. Keep it clean — we'll rename anything we can't print.",
+      hint: "This is what we'll call you throughout. Keep it clean — we'll rename anything we can't put on a slide.",
     },
     {
       key: "problem_statement",
@@ -156,7 +156,7 @@ export const FORMS = {
       type: "select",
       required: true,
       options: problemStatementOptions("mahakumbh-hackathon"),
-      hint: "Only three teams are selected per statement. Pick the one you actually want to build for — we do not reassign teams.",
+      hint: "Three teams per statement. A statement closes the moment it has three, and we do not reassign teams — so pick the one you actually want to build for.",
       emphasiseHint: true,
     },
     {
@@ -187,8 +187,6 @@ export const FORMS = {
       label: "Member 2 — full name",
       type: "text",
       required: true,
-      hint: "Teams are exactly two people. Both names go on the certificates, so spell it the way it should be printed.",
-      emphasiseHint: true,
     },
     {
       key: "member2_email",
@@ -211,15 +209,12 @@ export const FORMS = {
       options: ["FE", "SE", "TE", "BE"],
     },
 
-    // --- consent -------------------------------------------------------------
+    // --- declaration ---------------------------------------------------------
     {
-      key: "govt_consent",
-      label:
-        "Both members agree that, if selected, our work may be submitted to the Government of Maharashtra",
+      key: "info_accurate",
+      label: "Information is correct with best of our knowledge",
       type: "checkbox",
       required: true,
-      hint: "The outcome of the selected projects goes to the state for the Nashik Kumbh Mela. Confirm with your teammate before ticking.",
-      emphasiseHint: true,
     },
   ],
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import type { FieldDef } from "@/lib/form-types";
+import type { FieldDef, SlotAvailability } from "@/lib/form-types";
 import { FieldRenderer } from "@/components/form-renderer/FieldRenderer";
 import {
   BrandButton,
@@ -25,6 +25,11 @@ type Props = {
    * is already false in this case, so there is no payment step to run.
    */
   waitlisting?: boolean;
+  /**
+   * Per-option availability for the one question this event caps by answer.
+   * Advisory only — the database is what actually refuses a full option.
+   */
+  availability?: SlotAvailability;
 };
 
 type Answers = Record<string, unknown>;
@@ -112,6 +117,7 @@ export function RegistrationForm({
   refundTerms,
   paymentQrUrl,
   waitlisting = false,
+  availability,
 }: Props) {
   const router = useRouter();
 
@@ -149,6 +155,19 @@ export function RegistrationForm({
       const value = answers[field.key];
       if (value === undefined || value === "" || value === null) {
         next[field.key] = `${field.label} is required`;
+      }
+    }
+
+    // The option can fill up between the page loading and this submit. The
+    // database refuses it either way; catching it here turns a 409 after the
+    // payment step into an inline error next to the field to change.
+    if (availability) {
+      const chosen = answers[availability.fieldKey];
+      if (
+        typeof chosen === "string" &&
+        (availability.used[chosen] ?? 0) >= availability.capacity
+      ) {
+        next[availability.fieldKey] = "That option is full. Choose another one.";
       }
     }
 
@@ -395,6 +414,9 @@ export function RegistrationForm({
             value={answers[field.key]}
             error={errors[field.key]}
             onChange={(value) => setAnswers({ ...answers, [field.key]: value })}
+            availability={
+              availability?.fieldKey === field.key ? availability : undefined
+            }
           />
         ))}
 

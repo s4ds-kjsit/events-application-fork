@@ -30,6 +30,23 @@ export type FieldDef = {
 };
 
 /**
+ * Per-option availability for the one field an event caps by answer.
+ *
+ * Only ever advisory. The database decides whether a place exists
+ * (register_for_event, supabase/migrations/0008_slot_capacity.sql) — this
+ * exists so someone can see what's left before typing everything out, rather
+ * than being told after they submit.
+ */
+export type SlotAvailability = {
+  /** `FieldDef.key` of the capped question. */
+  fieldKey: string;
+  /** Places per option. */
+  capacity: number;
+  /** Places already held, keyed by the exact option string. Absent = zero. */
+  used: Record<string, number>;
+};
+
+/**
  * Builds the Zod schema for an event's extra questions from the same array the
  * renderer uses, so the form and the API can never disagree about what's valid.
  */

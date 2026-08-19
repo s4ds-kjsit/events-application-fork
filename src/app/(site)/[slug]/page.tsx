@@ -4,15 +4,21 @@ import Image from "next/image";
 import { Globe } from "lucide-react";
 import { isReservedSlug } from "@/lib/reserved-slugs";
 import { getSpeakers, type Speaker } from "@/config/speakers";
-import { getProblemStatements, type ProblemStatement } from "@/config/problem-statements";
-import { isScheduleTba, SCHEDULE_TBA_LABEL } from "@/config/schedule";
+import {
+  getProblemStatements,
+  problemStatementOptions,
+  type ProblemStatement,
+} from "@/config/problem-statements";
+import { getEventFeatures, SCHEDULE_TBA_LABEL } from "@/config/event-features";
 import {
   getEventBySlug,
   getEventFormFields,
+  getSlotUsage,
   formatEventDates,
   formatDayDate,
   formatFee,
 } from "@/lib/events";
+import type { SlotAvailability } from "@/lib/form-types";
 import { RegistrationForm } from "./RegistrationForm";
 import { accentAt, accentBlock, Chip, Panel, SectionHeading } from "@/components/s4ds";
 
@@ -48,10 +54,28 @@ export default async function EventPage({ params }: Params) {
   const problemStatements = getProblemStatements(slug);
   const closed = !event.registration_open;
 
+  // How many places each option is holding. Empty map when the event has no
+  // per-answer cap, which is every event except the ones that opt in.
+  const slotUsage = await getSlotUsage(event);
+
+  const availability: SlotAvailability | undefined =
+    event.slot_answer_key && event.slot_capacity
+      ? {
+          fieldKey: event.slot_answer_key,
+          capacity: event.slot_capacity,
+          used: Object.fromEntries(slotUsage),
+        }
+      : undefined;
+
+  // The option strings are numbered ("3. Critical analysis of…") and that
+  // numbering is what the answers are stored as, so the cards have to look
+  // themselves up by the same string the dropdown submits.
+  const statementOptions = problemStatementOptions(slug);
+
   // Scheduled-TBA events carry a placeholder `ends_at`. Left alone, that
   // placeholder would quietly roll past and print "This event has finished"
   // over an event that hasn't been scheduled yet.
-  const datesTba = isScheduleTba(slug);
+  const datesTba = getEventFeatures(slug).scheduleTba;
 
   // Being full is no longer a closed state — it switches to `event.waitlisting`.
   const finished = !datesTba && new Date(event.ends_at) < new Date();
@@ -166,11 +190,26 @@ export default async function EventPage({ params }: Params) {
             <p className="mt-5 max-w-[68ch] text-[var(--s4ds-ink-dim)] text-pretty">
               Pick <strong className="font-bold text-[var(--s4ds-ink)]">one</strong> when you
               register. Teams are not reassigned afterwards.
+              {event.slot_capacity ? (
+                <>
+                  {" "}
+                  Each statement takes{" "}
+                  <strong className="font-bold text-[var(--s4ds-ink)]">
+                    {event.slot_capacity} teams
+                  </strong>
+                  , and closes once it&apos;s full.
+                </>
+              ) : null}
             </p>
             <ol className="mt-6 grid gap-4 sm:grid-cols-2">
               {problemStatements.map((statement, index) => (
                 <li key={statement.title}>
-                  <ProblemStatementCard statement={statement} number={index + 1} />
+                  <ProblemStatementCard
+                    statement={statement}
+                    number={index + 1}
+                    capacity={event.slot_capacity}
+                    taken={slotUsage.get(statementOptions[index]) ?? 0}
+                  />
                 </li>
               ))}
             </ol>
@@ -247,6 +286,7 @@ export default async function EventPage({ params }: Params) {
                   feeLabel={formatFee(event.fee_amount)}
                   refundTerms={refundTerms}
                   paymentQrUrl={event.payment_qr_url}
+                  availability={availability}
                 />
               </Panel>
             </>
@@ -266,17 +306,37 @@ export default async function EventPage({ params }: Params) {
 function ProblemStatementCard({
   statement,
   number,
+  capacity,
+  taken,
 }: {
   statement: ProblemStatement;
   number: number;
+  /**
+   * Teams accepted per statement. Null when the event isn't capped per answer.
+   *
+   * `undefined` is a real case, not defensive padding: until 0008_slot_capacity
+   * is applied the column doesn't exist, so `select *` returns a row with no
+   * such key. A `=== null` check lets that through and renders "NaN of
+   * undefined places left" on the live page.
+   */
+  capacity: number | null | undefined;
+  taken: number;
 }) {
+  // Clamped: an admin approving a rejected team back in can push a statement
+  // over its capacity, and "-1 left" helps nobody.
+  const left =
+    typeof capacity === "number" ? Math.max(0, capacity - taken) : null;
+  const full = left === 0;
+
   return (
-    <Panel className="flex h-full gap-4 p-4 sm:p-5">
+    <Panel className={`flex h-full gap-4 p-4 sm:p-5 ${full ? "opacity-60" : ""}`}>
       <span
         aria-hidden
-        className={`grid size-10 shrink-0 place-items-center rounded-[var(--s4ds-r-sm)] border-[3px] border-[var(--s4ds-edge)] text-lg font-black tabular-nums ${accentBlock(
-          accentAt(number - 1),
-        )}`}
+        className={`grid size-10 shrink-0 place-items-center rounded-[var(--s4ds-r-sm)] border-[3px] border-[var(--s4ds-edge)] text-lg font-black tabular-nums ${
+          full
+            ? "bg-[var(--s4ds-paper)] text-[var(--s4ds-ink-invert-dim)]"
+            : accentBlock(accentAt(number - 1))
+        }`}
       >
         {number}
       </span>
@@ -288,6 +348,21 @@ function ProblemStatementCard({
         <p className="mt-1.5 text-sm leading-snug text-[var(--s4ds-ink-invert-dim)] text-pretty">
           {statement.blurb}
         </p>
+        {left === null ? null : (
+          // Colour is never the only signal — the words say "full" too, so this
+          // survives a monochrome or colour-blind read.
+          <p
+            className={`mt-2.5 text-xs font-black uppercase tracking-[0.06em] tabular-nums ${
+              full
+                ? "text-[var(--s4ds-ink-invert-dim)]"
+                : left === 1
+                  ? "text-[var(--s4ds-orange)]"
+                  : "text-[var(--s4ds-ink-invert)]"
+            }`}
+          >
+            {full ? "Full — 0 places left" : `${left} of ${capacity} places left`}
+          </p>
+        )}
       </div>
     </Panel>
   );
