@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Globe } from "lucide-react";
 import { isReservedSlug } from "@/lib/reserved-slugs";
 import { getSpeakers, type Speaker } from "@/config/speakers";
+import { getProblemStatements, type ProblemStatement } from "@/config/problem-statements";
+import { isScheduleTba, SCHEDULE_TBA_LABEL } from "@/config/schedule";
 import {
   getEventBySlug,
   getEventFormFields,
@@ -12,7 +14,7 @@ import {
   formatFee,
 } from "@/lib/events";
 import { RegistrationForm } from "./RegistrationForm";
-import { Chip, Panel, SectionHeading } from "@/components/s4ds";
+import { accentAt, accentBlock, Chip, Panel, SectionHeading } from "@/components/s4ds";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +45,16 @@ export default async function EventPage({ params }: Params) {
 
   const fields = getEventFormFields(event);
   const speakers = getSpeakers(slug);
+  const problemStatements = getProblemStatements(slug);
   const closed = !event.registration_open;
+
+  // Scheduled-TBA events carry a placeholder `ends_at`. Left alone, that
+  // placeholder would quietly roll past and print "This event has finished"
+  // over an event that hasn't been scheduled yet.
+  const datesTba = isScheduleTba(slug);
+
   // Being full is no longer a closed state — it switches to `event.waitlisting`.
-  const finished = new Date(event.ends_at) < new Date();
+  const finished = !datesTba && new Date(event.ends_at) < new Date();
   const lowSpots =
     event.spots_left !== null && event.spots_left > 0 && event.spots_left <= 10;
 
@@ -76,6 +85,7 @@ export default async function EventPage({ params }: Params) {
                 : "Free"}
             </Chip>
             {event.days.length > 1 ? <Chip>{event.days.length} days</Chip> : null}
+            {datesTba ? <Chip accent="peri">{SCHEDULE_TBA_LABEL}</Chip> : null}
             {event.spots_left !== null && !finished ? (
               event.waitlisting ? (
                 <Chip accent="orange">Waitlist open</Chip>
@@ -100,32 +110,43 @@ export default async function EventPage({ params }: Params) {
       </section>
 
       <div className="mx-auto w-full max-w-3xl px-5 py-12">
-        <Panel className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-          <div>
-            <dt className="text-xs font-black uppercase tracking-[0.1em] text-[var(--s4ds-ink-invert-dim)]">
-              When
-            </dt>
-            <dd className="mt-1 font-bold leading-snug">{formatEventDates(event)}</dd>
-          </div>
-          {event.venue ? (
-            <div>
-              <dt className="text-xs font-black uppercase tracking-[0.1em] text-[var(--s4ds-ink-invert-dim)]">
-                Where
-              </dt>
-              <dd className="mt-1 font-bold leading-snug">{event.venue}</dd>
-            </div>
-          ) : null}
-        </Panel>
+        {/* Nothing to put in the panel when the schedule is TBA and there's no
+            venue — an empty slab reading "When: to be announced" is worse than
+            the chip in the hero, which says the same thing in three words. */}
+        {!datesTba || event.venue ? (
+          <Panel className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+            {!datesTba ? (
+              <div>
+                <dt className="text-xs font-black uppercase tracking-[0.1em] text-[var(--s4ds-ink-invert-dim)]">
+                  When
+                </dt>
+                <dd className="mt-1 font-bold leading-snug">{formatEventDates(event)}</dd>
+              </div>
+            ) : null}
+            {event.venue ? (
+              <div>
+                <dt className="text-xs font-black uppercase tracking-[0.1em] text-[var(--s4ds-ink-invert-dim)]">
+                  Where
+                </dt>
+                <dd className="mt-1 font-bold leading-snug">{event.venue}</dd>
+              </div>
+            ) : null}
+          </Panel>
+        ) : null}
 
         {event.days.length > 1 ? (
-          <ul className="mt-5 overflow-hidden rounded-[var(--s4ds-r)] border-2 border-[var(--s4ds-ink)]/20">
+          <ul className={`${!datesTba || event.venue ? "mt-5" : ""} overflow-hidden rounded-[var(--s4ds-r)] border-2 border-[var(--s4ds-ink)]/20`}>
             {event.days.map((day) => (
               <li
                 key={day.id}
                 className="flex items-baseline justify-between gap-4 border-b-2 border-[var(--s4ds-ink)]/15 px-4 py-3 text-sm last:border-b-0"
               >
                 <span className="font-bold">{day.label ?? `Day ${day.day_number}`}</span>
-                <span className="text-[var(--s4ds-ink-dim)]">{formatDayDate(day.date)}</span>
+                {/* The day's `date` is a placeholder too when the schedule is
+                    TBA — the running order is real, the dates are not. */}
+                {datesTba ? null : (
+                  <span className="text-[var(--s4ds-ink-dim)]">{formatDayDate(day.date)}</span>
+                )}
               </li>
             ))}
           </ul>
@@ -135,6 +156,25 @@ export default async function EventPage({ params }: Params) {
           <div className="mt-12 space-y-4 leading-relaxed">
             {renderDescription(event.description)}
           </div>
+        ) : null}
+
+        {problemStatements.length > 0 ? (
+          <section className="mt-14">
+            <SectionHeading accent="orange" count={problemStatements.length}>
+              Problem statements
+            </SectionHeading>
+            <p className="mt-5 max-w-[68ch] text-[var(--s4ds-ink-dim)] text-pretty">
+              Pick <strong className="font-bold text-[var(--s4ds-ink)]">one</strong> when you
+              register. Teams are not reassigned afterwards.
+            </p>
+            <ol className="mt-6 grid gap-4 sm:grid-cols-2">
+              {problemStatements.map((statement, index) => (
+                <li key={statement.title}>
+                  <ProblemStatementCard statement={statement} number={index + 1} />
+                </li>
+              ))}
+            </ol>
+          </section>
         ) : null}
 
         {speakers.length > 0 ? (
@@ -214,6 +254,42 @@ export default async function EventPage({ params }: Params) {
         </section>
       </div>
     </main>
+  );
+}
+
+/**
+ * One of the twelve. The number is the loud part on purpose — it's how teams
+ * refer to a statement in the room, on the shortlist, and in the dropdown they
+ * pick from, so it has to be findable at a glance rather than read out of a
+ * sentence.
+ */
+function ProblemStatementCard({
+  statement,
+  number,
+}: {
+  statement: ProblemStatement;
+  number: number;
+}) {
+  return (
+    <Panel className="flex h-full gap-4 p-4 sm:p-5">
+      <span
+        aria-hidden
+        className={`grid size-10 shrink-0 place-items-center rounded-[var(--s4ds-r-sm)] border-[3px] border-[var(--s4ds-edge)] text-lg font-black tabular-nums ${accentBlock(
+          accentAt(number - 1),
+        )}`}
+      >
+        {number}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-base font-black leading-tight tracking-[-0.015em] text-balance">
+          <span className="sr-only">Problem statement {number}: </span>
+          {statement.title}
+        </h3>
+        <p className="mt-1.5 text-sm leading-snug text-[var(--s4ds-ink-invert-dim)] text-pretty">
+          {statement.blurb}
+        </p>
+      </div>
+    </Panel>
   );
 }
 

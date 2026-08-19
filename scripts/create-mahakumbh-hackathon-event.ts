@@ -32,8 +32,13 @@ function check<T>(what: string, result: { data: T | null; error: unknown }): T {
   return result.data as T;
 }
 
-// The real schedule isn't fixed yet. These are PLACEHOLDERS — edit them and
-// re-run this script once the dates are confirmed, the upsert will update them.
+// The real schedule isn't fixed yet, and `starts_at`/`ends_at` are NOT NULL, so
+// the row has to carry SOMETHING. These are PLACEHOLDERS and the site hides
+// them: the slug is listed in src/config/schedule, which is what turns every
+// date on the public pages into "Dates to be announced".
+//
+// When the real dates land: edit these, re-run this script, and REMOVE the slug
+// from src/config/schedule — the second step is the one that's easy to forget.
 // IST offset is explicit, same as the other event scripts.
 const DAY_1_START = "2026-10-10T09:00:00+05:30";
 const DAY_1_END = "2026-10-10T21:00:00+05:30";
@@ -71,28 +76,19 @@ async function main() {
             `- **${TEAMS_PER_PROBLEM_STATEMENT} teams are selected per problem statement** — ${TEAM_CAPACITY} teams in total.`,
             "- Shortlisting is on your written approach, so take that question seriously. Registering does not mean you're in.",
             "",
-            "**The twelve problem statements**",
-            "",
-            "1. Finance aspect of Mahakumbh",
-            "2. Planning and organization of Mahakumbh",
-            "3. Critical analysis of the supply chain issues in Mahakumbh",
-            "4. Management of transportation during Mahakumbh",
-            "5. Planning for important aspects such as Shahi Snan (शाही स्नान)",
-            "6. Human resources planning regarding the Mahakumbh",
-            "7. Role of local government in Mahakumbh",
-            "8. Life experiences of visitors to Mahakumbh",
-            "9. Science / Scientific angle of Mahakumbh",
-            "10. Role of Social Media in organizing, managing Mahakumbh",
-            "11. Role of AI in organizing, managing Mahakumbh",
-            "12. Any other topic in the aspect of Mahakumbh",
-            "",
+            // The twelve statements are NOT repeated here. They live in
+            // src/config/problem-statements and the event page renders them as
+            // their own section — one list, one place to correct a typo.
             "**What to bring**",
             "",
             "Your own laptop. Bring anything you've already read on crowd management, civic planning or the 2025 Mahakumbh — the strongest submissions are the ones that start from real material rather than from scratch.",
             "",
-            "Open to students across departments and colleges. Cross-college teams are allowed.",
+            "Open to KJSIT students across all departments and years.",
           ].join("\n"),
-          venue: "KJSIT, Vidyavihar",
+          // No venue and no announced dates yet. `starts_at`/`ends_at` are NOT
+          // NULL so they carry the placeholders below; the slug is listed in
+          // src/config/schedule so the site never prints them as fact.
+          venue: null,
           form_key: "mahakumbh-hackathon",
           starts_at: DAY_1_START,
           ends_at: DAY_2_END,
@@ -154,8 +150,10 @@ async function main() {
   console.log(`Day 1: ${DAY_1_START}  ->  ${DAY_1_END}`);
   console.log(`Day 2: ${DAY_2_START}  ->  ${DAY_2_END}`);
   console.log(
-    "\nDates above are PLACEHOLDERS. Edit the constants at the top of this " +
-      "script and re-run once the schedule is confirmed.",
+    "\nThose dates are PLACEHOLDERS and are hidden on the site — the slug is\n" +
+      "listed in src/config/schedule. When the schedule is confirmed: edit the\n" +
+      "constants at the top of this script, re-run it, AND remove the slug from\n" +
+      "src/config/schedule. No venue is set either.",
   );
 }
 

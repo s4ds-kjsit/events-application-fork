@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/supabase";
 import { getFormFields } from "@/config/forms";
+import { isScheduleTba, SCHEDULE_TBA_LABEL } from "@/config/schedule";
 import type { Event, EventDay } from "@/lib/database.types";
 
 /**
@@ -148,7 +149,17 @@ export function formatFee(paise: number | null): string {
 
 const IST = "Asia/Kolkata";
 
-export function formatEventDates(event: Pick<Event, "starts_at" | "ends_at">): string {
+/**
+ * Takes the slug as well as the dates because an event can be scheduled-TBA
+ * (see `@/config/schedule`), in which case `starts_at` is a placeholder that
+ * must never be rendered as if it were the real date. Centralised here so the
+ * homepage card and the ticket get it without each remembering to check.
+ */
+export function formatEventDates(
+  event: Pick<Event, "slug" | "starts_at" | "ends_at">,
+): string {
+  if (isScheduleTba(event.slug)) return SCHEDULE_TBA_LABEL;
+
   const start = new Date(event.starts_at);
   const end = new Date(event.ends_at);
 
