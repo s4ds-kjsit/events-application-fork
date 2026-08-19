@@ -19,7 +19,10 @@ export async function emailPayload(
   const [{ data: event }, { count: dayCount }] = await Promise.all([
     db
       .from("events")
-      .select("title, starts_at, ends_at, venue, requires_payment, fee_amount")
+      // `slug` is selected for formatEventDates, not for a link: it's how the
+      // formatter knows the dates are a scheduled-TBA placeholder. Without it
+      // the confirmation email would print a date the site refuses to show.
+      .select("slug, title, starts_at, ends_at, venue, requires_payment, fee_amount")
       .eq("id", eventId)
       .single(),
     db.from("event_days").select("id", { count: "exact", head: true }).eq("event_id", eventId),
