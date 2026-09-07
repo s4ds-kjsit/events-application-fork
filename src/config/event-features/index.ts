@@ -66,8 +66,8 @@ const DEFAULTS: EventFeatures = {
 
 const OVERRIDES: Record<string, Partial<EventFeatures>> = {
   "mahakumbh-hackathon": {
-    // Dates, duration and venue are all still undecided.
-    scheduleTba: true,
+    // Date is confirmed (9 Sep 2026); duration and venue are still undecided.
+    scheduleTba: false,
     // No email at any stage, by request. The WhatsApp group is the channel.
     email: false,
     // No ticket and no QR — registering, and the group link, is the whole flow.

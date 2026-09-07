@@ -38,18 +38,12 @@ function check<T>(what: string, result: { data: T | null; error: unknown }): T {
   return result.data as T;
 }
 
-// The real schedule isn't fixed yet, and `starts_at`/`ends_at` are NOT NULL, so
-// the row has to carry SOMETHING. These are PLACEHOLDERS and the site hides
-// them: the slug is listed in src/config/schedule, which is what turns every
-// date on the public pages into "Dates to be announced".
-//
-// When the real dates land: edit these, re-run this script, and REMOVE the slug
-// from src/config/schedule — the second step is the one that's easy to forget.
-// IST offset is explicit, same as the other event scripts.
-const PLACEHOLDER_START = "2026-10-10T09:00:00+05:30";
-const PLACEHOLDER_END = "2026-10-10T18:00:00+05:30";
+// Confirmed: 9 September 2026. IST offset is explicit, same as the other
+// event scripts.
+const PLACEHOLDER_START = "2026-09-09T09:00:00+05:30";
+const PLACEHOLDER_END = "2026-09-09T18:00:00+05:30";
 
-const REGISTRATION_CLOSES_AT = "2026-10-05T23:59:00+05:30";
+const REGISTRATION_CLOSES_AT = "2026-09-08T23:59:00+05:30";
 
 // 12 problem statements x 3 teams. Capacity counts TEAMS, because one
 // registration is one team — 36 teams is 72 people in the room.
@@ -89,9 +83,7 @@ async function main() {
             "",
             "Open to KJSIT students across all departments and years.",
           ].join("\n"),
-          // No venue and no announced dates yet. `starts_at`/`ends_at` are NOT
-          // NULL so they carry the placeholders below; the slug is listed in
-          // src/config/schedule so the site never prints them as fact.
+          // Venue still isn't decided; the date is confirmed above.
           venue: null,
           form_key: "mahakumbh-hackathon",
           starts_at: PLACEHOLDER_START,
@@ -218,12 +210,8 @@ async function main() {
   );
   console.log(`\nOne day row, dated ${PLACEHOLDER_START} -> ${PLACEHOLDER_END}.`);
   console.log(
-    "\nThose dates are PLACEHOLDERS and are hidden on the site — the slug is\n" +
-      "listed in src/config/schedule. When the schedule is confirmed: edit the\n" +
-      "constants at the top of this script, re-run it, AND remove the slug from\n" +
-      "src/config/schedule.\n\n" +
-      "Not set yet, by design: venue, dates, and duration (one day row, because\n" +
-      "how long the event runs hasn't been decided — add a second row here if it\n" +
+    "\nNot set yet, by design: venue and duration (one day row, because how\n" +
+      "long the event runs hasn't been decided — add a second row here if it\n" +
       "turns out to be two days).",
   );
 }
