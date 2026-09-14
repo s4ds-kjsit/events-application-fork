@@ -73,6 +73,12 @@ const OVERRIDES: Record<string, Partial<EventFeatures>> = {
     // No ticket and no QR — registering, and the group link, is the whole flow.
     ticket: false,
   },
+  "knowbuild-2-0": {
+    // Teams are reviewed by hand (auto_approve: false) — no QR is issued at
+    // any stage, by request. The WhatsApp group (src/config/community) is
+    // what people are pointed at instead, on the ticket page and in email.
+    ticket: false,
+  },
 };
 
 export function getEventFeatures(slug: string): EventFeatures {

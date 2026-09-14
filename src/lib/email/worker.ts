@@ -37,24 +37,7 @@ export async function processEmailQueue(batch = 5, includeCertificates = false):
     try {
       const payload = job.payload as unknown as TemplatePayload;
       const { subject, html, text } = renderEmail(job.template as TemplateName, payload);
-
-      let attachments;
-      if (job.template === "approved" && payload.code) {
-        attachments = [
-          { filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" },
-          { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
-        ];
-      } else if (job.template === "certificate") {
-        attachments = [
-          {
-            filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
-            content: Buffer.from(
-              await generateCertificatePdf(payload.name, { eventTitle: payload.event_title }),
-            ),
-            contentType: "application/pdf",
-          },
-        ];
-      }
+      const attachments = await attachmentsFor(job.template as TemplateName, payload);
 
       await sendEmail({ to: job.to, subject, html, text, attachments });
 
@@ -86,6 +69,52 @@ export async function processEmailQueue(batch = 5, includeCertificates = false):
   }
 
   return { claimed: jobs.length, sent, failed };
+}
+
+type Attachment = { filename: string; content: Buffer; cid?: string; contentType?: string };
+
+/**
+ * What to attach, kept in one place so the two send paths below can't drift.
+ * Must agree with templates.ts about when each cid actually appears in the
+ * HTML — an attachment nothing references is harmless, but a cid referenced
+ * with nothing attached renders as a broken image.
+ */
+async function attachmentsFor(
+  template: TemplateName,
+  payload: TemplatePayload,
+): Promise<Attachment[] | undefined> {
+  if (template === "approved" && payload.code) {
+    const attachments: Attachment[] = [
+      { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
+    ];
+    // has_ticket === false means this event issues no QR at all (see
+    // event-features.ticket) — the template already skips the <img
+    // src="cid:ticket-qr">, so attaching one anyway would just be dead weight.
+    if (payload.has_ticket !== false) {
+      attachments.push({ filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" });
+    }
+    return attachments;
+  }
+
+  // "confirmation" only renders a WhatsApp button when the event has a
+  // community group configured — see communityButton() in templates.ts.
+  if (template === "confirmation" && payload.community) {
+    return [{ filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" }];
+  }
+
+  if (template === "certificate") {
+    return [
+      {
+        filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
+        content: Buffer.from(
+          await generateCertificatePdf(payload.name, { eventTitle: payload.event_title }),
+        ),
+        contentType: "application/pdf",
+      },
+    ];
+  }
+
+  return undefined;
 }
 
 /**
@@ -124,24 +153,7 @@ export async function sendEmailJob(id: string): Promise<boolean> {
   try {
     const payload = job.payload as unknown as TemplatePayload;
     const { subject, html, text } = renderEmail(job.template as TemplateName, payload);
-
-    let attachments;
-    if (job.template === "approved" && payload.code) {
-      attachments = [
-        { filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" },
-        { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
-      ];
-    } else if (job.template === "certificate") {
-      attachments = [
-        {
-          filename: `${payload.name.replace(/\s+/g, "_")}_Certificate.pdf`,
-          content: Buffer.from(
-            await generateCertificatePdf(payload.name, { eventTitle: payload.event_title }),
-          ),
-          contentType: "application/pdf",
-        },
-      ];
-    }
+    const attachments = await attachmentsFor(job.template as TemplateName, payload);
 
     await sendEmail({ to: job.to, subject, html, text, attachments });
 

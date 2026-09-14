@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import { db } from "@/lib/supabase";
 import { getFormFields } from "@/config/forms";
-import { getPaymentProofUrl } from "@/lib/cloudinary";
+import { getPaymentProofUrl, getIdeaDocumentUrl } from "@/lib/cloudinary";
 import { formatEventDates } from "@/lib/events";
 import { Badge } from "@/components/ui/badge";
 import { summariseAnswers, type Slice } from "@/lib/responses-summary";
@@ -108,22 +108,31 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
     return acc;
   }, {});
 
-  // Signing happens here, on the server — the API secret never leaves it, and
-  // the browser only ever sees a short-lived URL.
-  const rows: Row[] = (registrations ?? []).map((row) => ({
-    id: row.id,
-    code: row.code,
-    full_name: row.full_name,
-    email: row.email,
-    phone: row.phone,
-    status: row.status,
-    created_at: row.created_at,
-    answers: (row.answers ?? {}) as Record<string, string>,
-    proof_url: row.payment_proof_url ? getPaymentProofUrl(row.payment_proof_url) : null,
-  }));
-
   const fields = getFormFields(event.form_key);
-  const fieldKeys = fields.map((field) => field.key);
+  const fileFieldKeys = fields.filter((field) => field.type === "file").map((field) => field.key);
+
+  // Signing happens here, on the server — the API secret never leaves it, and
+  // the browser only ever sees a short-lived URL. Idea-document answers hold a
+  // Cloudinary public_id (see uploadIdeaDocument), same as payment_proof_url —
+  // swap it for a signed URL the admin table can link to directly.
+  const rows: Row[] = (registrations ?? []).map((row) => {
+    const answers = { ...((row.answers ?? {}) as Record<string, string>) };
+    for (const key of fileFieldKeys) {
+      if (answers[key]) answers[key] = getIdeaDocumentUrl(answers[key]);
+    }
+
+    return {
+      id: row.id,
+      code: row.code,
+      full_name: row.full_name,
+      email: row.email,
+      phone: row.phone,
+      status: row.status,
+      created_at: row.created_at,
+      answers,
+      proof_url: row.payment_proof_url ? getPaymentProofUrl(row.payment_proof_url) : null,
+    };
+  });
 
   // The summary answers "what did the people in *this* tab say", so it reads the
   // same slice of registrations the table below it is showing.
@@ -207,7 +216,7 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
         scope={FILTERS.find((f) => f.key === filter)!.label}
       />
 
-      <RegistrationsTable rows={rows} fields={fieldKeys} />
+      <RegistrationsTable rows={rows} fields={fields} />
     </div>
   );
 }

@@ -27,6 +27,27 @@ export type TemplatePayload = {
   fee_label?: string;
   refund_terms?: string | null;
   reason?: string;
+  /**
+   * Set on the "confirmation" email when the registration is still PENDING —
+   * an event with `auto_approve: false` reviews teams by hand, so nobody gets
+   * told they're confirmed (or gets a QR) until an admin actually approves
+   * them. Absent/false means the registration was auto-approved already.
+   */
+  pending?: boolean;
+  /**
+   * Mirrors `event-features.ticket`. False means this event issues no QR at
+   * all — the "approved" email must not attach or reference one, even though
+   * it normally does.
+   */
+  has_ticket?: boolean;
+  /**
+   * The group to invite someone to join, if this event has one (see
+   * `@/config/community`). Rendered as a button on "confirmation" and
+   * "approved" — for a no-ticket event (see `has_ticket`), this is the only
+   * next step in either email, so it has to carry the weight the QR usually
+   * does.
+   */
+  community?: { url: string; label: string; reason: string } | null;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -60,6 +81,24 @@ function button(url: string, label: string) {
   <tr><td style="background:#111111;border-radius:8px;">
     <a href="${url}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">${escapeHtml(label)}</a>
   </td></tr></table>`;
+}
+
+/**
+ * The green WhatsApp button used on both "confirmation" and "approved".
+ * `cid:whatsapp-icon` is attached in worker.ts whenever this renders — see
+ * `emailNeedsWhatsappIcon()` there, which has to agree with this function
+ * about when a button actually appears.
+ */
+function communityButton(group: { url: string; label: string; reason: string }) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0;">
+    <tr><td style="background:#128C4A;border-radius:8px;padding:11px 22px;">
+      <a href="${group.url}" style="display:block;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
+        <img src="cid:whatsapp-icon" alt="" width="18" height="18" style="vertical-align:middle;border:0;">
+        <span style="vertical-align:middle;">&nbsp;&nbsp;${escapeHtml(group.label)}</span>
+      </a>
+    </td></tr>
+  </table>
+  <p style="margin:12px 0 0;font-size:13px;color:#666666;">${escapeHtml(group.reason)}</p>`;
 }
 
 function details(payload: TemplatePayload) {
@@ -97,17 +136,29 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
 
   switch (template) {
     case "confirmation": {
+      // `fee_label` is only set for events that charge a deposit — a free,
+      // auto-approved event has already given the registrant a seat, so
+      // telling them "we're checking your payment" would just be wrong.
+      const awaitingPayment = Boolean(payload.fee_label);
       const subject = `Registered - ${payload.event_title}`;
+      const statusLine = payload.pending
+        ? awaitingPayment
+          ? "Someone from the team is checking your payment. You'll get your ticket and QR code once your registration is approved."
+          : "Your registration is under review. We'll email you once it's approved — no ticket or QR yet."
+        : awaitingPayment
+          ? "Someone from the team is checking your payment. Your QR code goes live once that's done. Keep this link, it's your ticket."
+          : "You're confirmed. Keep this link, it's your ticket.";
       return {
         subject,
         html: layout(`You're registered, ${escapeHtml(first)}`, [
           `<p style="margin:0 0 4px;">We've got your registration for <strong>${escapeHtml(payload.event_title)}</strong>.</p>`,
           details(payload),
-          `<p style="margin:0;">Someone from the team is checking your payment. Your QR code goes live once that's done. Keep this link, it's your ticket.</p>`,
+          `<p style="margin:0;">${statusLine}</p>`,
           button(payload.ticket_url, "Open my ticket"),
           payload.refund_terms
             ? `<p style="margin:0;font-size:13px;color:#666666;">${escapeHtml(payload.refund_terms)}</p>`
             : "",
+          payload.community ? communityButton(payload.community) : "",
         ].join("")),
         text: [
           `You're registered, ${first}.`,
@@ -116,8 +167,11 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
           "",
           textDetails(payload),
           "",
-          "Someone from the team is checking your payment. Your QR code goes live once that's done.",
+          statusLine,
           payload.refund_terms ? `\n${payload.refund_terms}` : "",
+          payload.community
+            ? `\n${payload.community.label}: ${payload.community.url}\n${payload.community.reason}`
+            : "",
         ].join("\n"),
       };
     }
@@ -144,28 +198,35 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
     }
 
     case "approved": {
+      // Every event gets a WhatsApp button here — `community` just lets a
+      // specific event point at its own group instead of the default one.
+      const group = payload.community ?? {
+        url: "https://chat.whatsapp.com/GmtWbCfG65hGl8kPvNRxZZ?s=cl&p=a&ilr=1",
+        label: "Join WhatsApp Group",
+        reason: "Join our WhatsApp group for further details.",
+      };
+      // `has_ticket` mirrors event-features.ticket — false means this event
+      // issues no QR at all, so showing one here (or telling someone to show
+      // it at a door with no scanner) would just be wrong.
+      const hasTicket = payload.has_ticket !== false;
+
       return {
         subject: `You're in - ${payload.event_title}`,
         html: layout(`You're in, ${escapeHtml(first)}`, [
           `<p style="margin:0 0 4px;">Your spot at <strong>${escapeHtml(payload.event_title)}</strong> is confirmed.</p>`,
           details(payload),
-          // cid:whatsapp-icon is attached in worker.ts, matched to this exact
-          // green so the mark sits flush in the button with no visible edge.
-          `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0;">
-            <tr><td style="background:#128C4A;border-radius:8px;padding:11px 22px;">
-              <a href="https://chat.whatsapp.com/GmtWbCfG65hGl8kPvNRxZZ?s=cl&p=a&ilr=1" style="display:block;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
-                <img src="cid:whatsapp-icon" alt="" width="18" height="18" style="vertical-align:middle;border:0;">
-                <span style="vertical-align:middle;">&nbsp;&nbsp;Join WhatsApp Group</span>
-              </a>
-            </td></tr>
-          </table>
-          <p style="margin:12px 0 0;font-size:13px;color:#666666;">Join our WhatsApp group for further details.</p>`,
-          // cid: points at the attached PNG, so it shows without the recipient
-          // having to click "display images".
-          `<p style="margin:18px 0 8px;">Show this at the door:</p>
-           <img src="cid:ticket-qr" alt="Your ticket QR code" width="200" height="200" style="display:block;border:8px solid #ffffff;border-radius:8px;">`,
-          button(payload.ticket_url, "Open my ticket"),
-          `<p style="margin:0;font-size:13px;color:#666666;">Can't see the code? Open the ticket link, it works on any phone.</p>`,
+          // cid:whatsapp-icon is attached in worker.ts whenever this renders.
+          communityButton(group),
+          hasTicket
+            ? [
+                // cid: points at the attached PNG, so it shows without the
+                // recipient having to click "display images".
+                `<p style="margin:18px 0 8px;">Show this at the door:</p>
+                 <img src="cid:ticket-qr" alt="Your ticket QR code" width="200" height="200" style="display:block;border:8px solid #ffffff;border-radius:8px;">`,
+                button(payload.ticket_url, "Open my ticket"),
+                `<p style="margin:0;font-size:13px;color:#666666;">Can't see the code? Open the ticket link, it works on any phone.</p>`,
+              ].join("")
+            : button(payload.ticket_url, "View my registration"),
         ].join("")),
         text: [
           `You're in, ${first}.`,
@@ -174,9 +235,10 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
           "",
           textDetails(payload),
           "",
-          "Join our WhatsApp group for further details: https://chat.whatsapp.com/GmtWbCfG65hGl8kPvNRxZZ?s=cl&p=a&ilr=1",
+          `${group.label}: ${group.url}`,
+          group.reason,
           "",
-          "Show the QR on your ticket page at the door.",
+          hasTicket ? "Show the QR on your ticket page at the door." : "",
         ].join("\n"),
       };
     }

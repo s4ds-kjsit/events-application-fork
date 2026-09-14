@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "@/lib/supabase";
 import { formatEventDates, formatFee } from "@/lib/events";
 import { ticketUrl } from "@/lib/email/queue";
+import { getEventFeatures } from "@/config/event-features";
+import { getCommunityGroup } from "@/config/community";
 import type { TemplatePayload } from "@/lib/email/templates";
 
 /**
@@ -29,6 +31,7 @@ export async function emailPayload(
   ]);
 
   const days = dayCount ?? 1;
+  const features = event ? getEventFeatures(event.slug) : null;
 
   return {
     name,
@@ -45,5 +48,7 @@ export async function emailPayload(
         ? `Your ${formatFee(event.fee_amount)} deposit is refunded in full once you check in on Day ${days}.`
         : `Your ${formatFee(event.fee_amount)} deposit is refunded in full once you check in at the door.`
       : null,
+    has_ticket: features?.ticket,
+    community: event ? getCommunityGroup(event.slug) : null,
   };
 }

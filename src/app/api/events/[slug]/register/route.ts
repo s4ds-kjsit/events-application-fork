@@ -145,7 +145,13 @@ export async function POST(
     // happened — no "you're registered" to someone who landed on the waitlist.
     template: registration.status === "WAITLISTED" ? "waitlisted" : "confirmation",
     registration_id: registration.id,
-    payload: await emailPayload(event.id, registration.full_name, registration.code),
+    payload: {
+      ...(await emailPayload(event.id, registration.full_name, registration.code)),
+      // Only meaningful on "confirmation" — a PENDING registration (event has
+      // auto_approve: false) gets told it's under review, not confirmed, and
+      // no QR goes out until an admin actually approves it.
+      pending: registration.status === "PENDING",
+    },
   });
 
   return NextResponse.json({ code: registration.code, status: registration.status });

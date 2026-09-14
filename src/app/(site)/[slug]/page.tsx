@@ -102,6 +102,19 @@ export default async function EventPage({ params }: Params) {
             <span aria-hidden>←</span> All events
           </Link>
 
+          {event.banner_url ? (
+            <div className="relative mt-5 aspect-[1599/735] w-full overflow-hidden rounded-[var(--s4ds-r)] border-[3px] border-[var(--s4ds-edge)] bg-[var(--s4ds-paper)]">
+              <Image
+                src={event.banner_url}
+                alt={`${event.title} logo`}
+                fill
+                sizes="(min-width: 768px) 768px, 100vw"
+                className="object-contain"
+                priority
+              />
+            </div>
+          ) : null}
+
           <div className="mt-7 flex flex-wrap items-center gap-2">
             <Chip accent={event.requires_payment ? "yellow" : "green"}>
               {event.requires_payment

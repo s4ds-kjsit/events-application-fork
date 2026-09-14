@@ -149,9 +149,10 @@ export default async function TicketPage({
         ) : null}
 
         <p className="mt-6 text-center text-sm text-[var(--s4ds-ink-dim)] text-pretty">
-          {/* No email goes out for these events, so this link is the only copy
-              of the confirmation that exists. Say so plainly. */}
-          Bookmark this page — we don&apos;t email a copy.{" "}
+          {/* Only true for events with no email at all (e.g. Mahakumbh) —
+              for one that does mail a copy (e.g. Knowbuild), saying so here
+              would just be wrong. */}
+          {features.email ? "Bookmark this page." : "Bookmark this page — we don't email a copy."}{" "}
           <Link
             href={`/${event.slug}`}
             className="font-bold text-[var(--s4ds-yellow)] underline underline-offset-4"

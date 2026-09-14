@@ -53,12 +53,22 @@ export function FieldRenderer({
 
       {field.hint ? (
         field.emphasiseHint ? (
-          <p
+          <div
             id={`${id}-hint`}
-            className="mt-2 max-w-[62ch] rounded-[var(--s4ds-r-sm)] border-2 border-[var(--s4ds-edge)] bg-[color-mix(in_srgb,var(--s4ds-yellow)_30%,transparent)] px-3 py-2 text-xs font-bold leading-relaxed"
+            className="mt-2 w-full rounded-[var(--s4ds-r-sm)] border-2 border-[var(--s4ds-edge)] bg-[color-mix(in_srgb,var(--s4ds-yellow)_30%,transparent)] px-3 py-2"
           >
-            {field.hint}
-          </p>
+            <p className="text-xs font-bold leading-relaxed">{field.hint}</p>
+            {field.link ? (
+              <a
+                href={field.link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-block text-base font-black text-blue-600 underline underline-offset-4 hover:text-blue-800"
+              >
+                {field.link.label} ↗
+              </a>
+            ) : null}
+          </div>
         ) : (
           <p
             id={`${id}-hint`}
