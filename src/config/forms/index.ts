@@ -254,7 +254,7 @@ export const FORMS = {
       label: "Year of study",
       type: "radio",
       required: true,
-      options: ["SY", "TY"],
+      options: ["FY", "SY", "TY"],
     },
     {
       key: "team_size",

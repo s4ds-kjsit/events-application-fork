@@ -32,9 +32,9 @@ function check<T>(what: string, result: { data: T | null; error: unknown }): T {
   return result.data as T;
 }
 
-// 26 September 2026, 9am to 5pm — 8 hours, IST offset explicit.
-const STARTS_AT = "2026-09-26T09:00:00+05:30";
-const ENDS_AT = "2026-09-26T17:00:00+05:30";
+// 26 September 2026, 8am to 4pm — 8 hours, IST offset explicit.
+const STARTS_AT = "2026-09-26T08:00:00+05:30";
+const ENDS_AT = "2026-09-26T16:00:00+05:30";
 
 // Registration deadline: 24 Sep 2026, 12:00 PM.
 const REGISTRATION_CLOSES_AT = "2026-09-24T12:00:00+05:30";
