@@ -4,6 +4,7 @@ import { formatEventDates, formatFee } from "@/lib/events";
 import { ticketUrl } from "@/lib/email/queue";
 import { getEventFeatures } from "@/config/event-features";
 import { getCommunityGroup } from "@/config/community";
+import { getSelectionInfo } from "@/config/selection";
 import type { TemplatePayload } from "@/lib/email/templates";
 
 /**
@@ -50,5 +51,7 @@ export async function emailPayload(
       : null,
     has_ticket: features?.ticket,
     community: event ? getCommunityGroup(event.slug) : null,
+    // Only the "approved" template reads this — harmless on the others.
+    selection: event ? getSelectionInfo(event.slug) : null,
   };
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import type { SelectionInfo } from "@/config/selection";
 
 /**
  * Plain HTML, deliberately.
@@ -48,6 +49,12 @@ export type TemplatePayload = {
    * does.
    */
   community?: { url: string; label: string; reason: string } | null;
+  /**
+   * Per-event "you've been selected" copy and links (form, rulebook, …) for
+   * the "approved" email — see `@/config/selection`. Absent means the plain
+   * "You're in" email.
+   */
+  selection?: SelectionInfo | null;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -99,6 +106,19 @@ function communityButton(group: { url: string; label: string; reason: string }) 
     </td></tr>
   </table>
   <p style="margin:12px 0 0;font-size:13px;color:#666666;">${escapeHtml(group.reason)}</p>`;
+}
+
+/** The form / rulebook / floor-rules list on a selection email. */
+function linkList(links: SelectionInfo["links"]) {
+  return links
+    .map(
+      (link) => `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:12px 0 0;border:1px solid #e5e5e5;border-radius:8px;">
+  <tr><td style="padding:12px 14px;">
+    <a href="${link.url}" style="font-size:15px;font-weight:700;color:#111111;text-decoration:underline;">${escapeHtml(link.label)} &rarr;</a>
+    <p style="margin:4px 0 0;font-size:13px;color:#666666;">${escapeHtml(link.note)}</p>
+  </td></tr></table>`,
+    )
+    .join("");
 }
 
 function details(payload: TemplatePayload) {
@@ -209,14 +229,33 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
       // issues no QR at all, so showing one here (or telling someone to show
       // it at a door with no scanner) would just be wrong.
       const hasTicket = payload.has_ticket !== false;
+      const selection = payload.selection;
+      const intro = selection?.intro ?? [
+        `Your spot at ${payload.event_title} is confirmed.`,
+      ];
 
       return {
-        subject: `You're in - ${payload.event_title}`,
-        html: layout(`You're in, ${escapeHtml(first)}`, [
-          `<p style="margin:0 0 4px;">Your spot at <strong>${escapeHtml(payload.event_title)}</strong> is confirmed.</p>`,
+        subject: selection
+          ? `Selected - ${payload.event_title}`
+          : `You're in - ${payload.event_title}`,
+        html: layout(selection ? selection.heading : `You're in, ${escapeHtml(first)}`, [
+          selection
+            ? `<p style="margin:0 0 12px;">Hi ${escapeHtml(first)},</p>` +
+              intro
+                .map((line) => `<p style="margin:0 0 12px;">${escapeHtml(line)}</p>`)
+                .join("")
+            : `<p style="margin:0 0 4px;">Your spot at <strong>${escapeHtml(payload.event_title)}</strong> is confirmed.</p>`,
           details(payload),
+          selection?.links.length
+            ? `<p style="margin:18px 0 0;font-weight:700;color:#111111;">Before the day</p>${linkList(selection.links)}`
+            : "",
           // cid:whatsapp-icon is attached in worker.ts whenever this renders.
           communityButton(group),
+          selection?.outro?.length
+            ? `<div style="margin:18px 0 0;">${selection.outro
+                .map((line) => `<p style="margin:0 0 12px;">${escapeHtml(line)}</p>`)
+                .join("")}</div>`
+            : "",
           hasTicket
             ? [
                 // cid: points at the attached PNG, so it shows without the
@@ -229,15 +268,23 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
             : button(payload.ticket_url, "View my registration"),
         ].join("")),
         text: [
-          `You're in, ${first}.`,
+          selection ? `${selection.heading}` : `You're in, ${first}.`,
           "",
-          `Your spot at ${payload.event_title} is confirmed.`,
-          "",
+          ...(selection ? [`Hi ${first},`, ""] : []),
+          ...intro.flatMap((line) => [line, ""]),
           textDetails(payload),
           "",
+          ...(selection?.links.length
+            ? [
+                "Before the day:",
+                ...selection.links.map((link) => `- ${link.label}: ${link.url}\n  ${link.note}`),
+                "",
+              ]
+            : []),
           `${group.label}: ${group.url}`,
           group.reason,
           "",
+          ...(selection?.outro ?? []).flatMap((line) => [line, ""]),
           hasTicket ? "Show the QR on your ticket page at the door." : "",
         ].join("\n"),
       };

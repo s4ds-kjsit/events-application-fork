@@ -36,8 +36,8 @@ function check<T>(what: string, result: { data: T | null; error: unknown }): T {
 const STARTS_AT = "2026-09-26T08:00:00+05:30";
 const ENDS_AT = "2026-09-26T16:00:00+05:30";
 
-// Registration deadline: 24 Sep 2026, 12:00 PM.
-const REGISTRATION_CLOSES_AT = "2026-09-24T12:00:00+05:30";
+// Registration deadline: 24 Sep 2026, 8:30 PM.
+const REGISTRATION_CLOSES_AT = "2026-09-24T20:30:00+05:30";
 
 async function main() {
   const [event] = check(
@@ -56,7 +56,7 @@ async function main() {
             "",
             "It's about hands-on exposure — experimenting with new tools, sharpening execution under time pressure, and presenting what you've built.",
             "",
-            "Open to all SY/TY teams. No prior hackathon experience needed.",
+            "Open to all FY/SY/TY teams. No prior hackathon experience needed.",
             "",
             "**Team size:** 2-4.",
           ].join("\n"),

@@ -36,7 +36,7 @@ export const COMMUNITY_GROUPS: Record<string, CommunityGroup> = {
       "Problem statement briefs, shortlist announcements and day-of updates go there first.",
   },
   "knowbuild-2-0": {
-    url: "https://chat.whatsapp.com/LuZZX2xKx9bHzAzezB6aA4",
+    url: "https://chat.whatsapp.com/LH64EyxMJgj8sVk9XxgbUA",
     label: "Join the WhatsApp group",
     reason: "Review results, track/venue updates and day-of instructions go there first.",
   },
