@@ -26,6 +26,8 @@ export type SelectionLink = {
 export type SelectionInfo = {
   /** Replaces the default "You're in" heading. */
   heading: string;
+  /** Subject prefix. Defaults to "Selected", which suits a shortlist, not a workshop. */
+  subject?: string;
   /** Paragraphs shown above the event details, in order. */
   intro: string[];
   links: SelectionLink[];
@@ -60,6 +62,25 @@ export const SELECTION_INFO: Record<string, SelectionInfo> = {
     outro: [
       "Reporting time is 7:00 AM sharp on 26 September. Bring your college ID card, a laptop and a charger.",
       "Questions? Join and Ask in the WhatsApp group.",
+    ],
+  },
+  "devops-workshop": {
+    heading: "You're in! Here's your meeting link",
+    subject: "You're in",
+    intro: [
+      "Your registration for the DevOps Workshop with Pratik Parikh has been approved. See you online!",
+    ],
+    links: [
+      {
+        // TODO: paste the meeting link BEFORE approving anyone. An empty url is
+        // skipped, and approval emails snapshot this when they're queued.
+        url: "",
+        label: "Join the session",
+        note: "Saturday, 14 November, 10:00 AM - 12:00 PM IST. Please join 5 minutes early.",
+      },
+    ],
+    outro: [
+      "Keep a laptop handy if you want to follow along with the Docker and GitHub Actions demos.",
     ],
   },
 };

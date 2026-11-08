@@ -85,9 +85,11 @@ async function attachmentsFor(
   payload: TemplatePayload,
 ): Promise<Attachment[] | undefined> {
   if (template === "approved" && payload.code) {
-    const attachments: Attachment[] = [
-      { filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" },
-    ];
+    // whatsapp === false means the template renders no group button at all.
+    const attachments: Attachment[] =
+      payload.whatsapp === false
+        ? []
+        : [{ filename: "whatsapp.png", content: WHATSAPP_ICON_PNG, cid: "whatsapp-icon" }];
     // has_ticket === false means this event issues no QR at all (see
     // event-features.ticket) — the template already skips the <img
     // src="cid:ticket-qr">, so attaching one anyway would just be dead weight.

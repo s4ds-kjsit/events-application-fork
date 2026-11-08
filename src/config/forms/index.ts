@@ -506,9 +506,20 @@ export const FORMS = {
     {
       key: "college",
       label: "College name",
+      type: "radio",
+      required: true,
+      options: ["K J Somaiya Institute of Technology", "MIT Pune", "Other"],
+      showIf: { key: "role", oneOf: ["Student"] },
+    },
+    {
+      // Only a "Student" can pick "Other" for `college`, so this one guard is
+      // enough: switching role away hides `college`, and with it this field.
+      key: "college_other",
+      label: "Your college name",
       type: "text",
       required: true,
-      showIf: { key: "role", oneOf: ["Student"] },
+      placeholder: "Type your college name",
+      showIf: { key: "college", oneOf: ["Other"] },
     },
     {
       key: "branch",

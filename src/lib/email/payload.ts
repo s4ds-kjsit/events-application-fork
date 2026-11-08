@@ -50,7 +50,8 @@ export async function emailPayload(
         : `Your ${formatFee(event.fee_amount)} deposit is refunded in full once you check in at the door.`
       : null,
     has_ticket: features?.ticket,
-    community: event ? getCommunityGroup(event.slug) : null,
+    community: event && features?.whatsapp ? getCommunityGroup(event.slug) : null,
+    whatsapp: features?.whatsapp,
     // Only the "approved" template reads this — harmless on the others.
     selection: event ? getSelectionInfo(event.slug) : null,
   };

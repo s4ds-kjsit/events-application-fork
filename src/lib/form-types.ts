@@ -49,11 +49,26 @@ export type FieldDef = {
   showIf?: { key: string; oneOf: string[] };
 };
 
-/** Whether `field` should be shown/required, given the answers so far. */
-export function isFieldActive(field: FieldDef, answers: Record<string, unknown>): boolean {
+/**
+ * Whether `field` should be shown/required, given the answers so far.
+ *
+ * Pass `fields` when guards can chain (college_other -> college -> role): a
+ * field is only active if the field it depends on is active too. Otherwise a
+ * stale answer left in a now-hidden field (college = "Other" after switching
+ * role) would keep its dependants showing and required.
+ */
+export function isFieldActive(
+  field: FieldDef,
+  answers: Record<string, unknown>,
+  fields?: readonly FieldDef[],
+  depth = 0,
+): boolean {
   if (!field.showIf) return true;
   const guard = answers[field.showIf.key];
-  return typeof guard === "string" && field.showIf.oneOf.includes(guard);
+  if (typeof guard !== "string" || !field.showIf.oneOf.includes(guard)) return false;
+  const parent = fields?.find((f) => f.key === field.showIf!.key);
+  // depth cap only guards against a misconfigured cycle.
+  return !parent || depth > 10 || isFieldActive(parent, answers, fields, depth + 1);
 }
 
 /**
@@ -150,7 +165,7 @@ export function buildAnswersSchema(fields: FieldDef[]) {
 
   return object.superRefine((data, ctx) => {
     for (const field of conditional) {
-      if (!isFieldActive(field, data)) continue;
+      if (!isFieldActive(field, data, fields)) continue;
       const value = data[field.key];
       const empty =
         value === undefined ||

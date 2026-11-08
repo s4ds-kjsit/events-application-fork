@@ -55,6 +55,13 @@ export type EventFeatures = {
    * "who actually showed up") has nothing to work from.
    */
   ticket: boolean;
+
+  /**
+   * Show a WhatsApp group button in emails. On by default: the "approved"
+   * email falls back to the general S4DS group when the event has none in
+   * `@/config/community`. False drops the button from every email entirely.
+   */
+  whatsapp: boolean;
 };
 
 /** What an event does unless it says otherwise. */
@@ -62,6 +69,7 @@ const DEFAULTS: EventFeatures = {
   scheduleTba: false,
   email: true,
   ticket: true,
+  whatsapp: true,
 };
 
 const OVERRIDES: Record<string, Partial<EventFeatures>> = {
@@ -82,6 +90,9 @@ const OVERRIDES: Record<string, Partial<EventFeatures>> = {
   "devops-workshop": {
     // Online session: there's no door to scan a QR at.
     ticket: false,
+    // No WhatsApp group for this one, by request. The meeting link in the
+    // approval email (src/config/selection) is the only next step.
+    whatsapp: false,
   },
 };
 

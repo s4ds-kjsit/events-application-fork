@@ -210,7 +210,7 @@ export function RegistrationForm({
   // Track-dependent questions (and anything else gated by `showIf`) are
   // filtered out here rather than in FieldRenderer, so a hidden field is
   // simply never rendered, never validated and never uploaded.
-  const visibleFields = fields.filter((field) => isFieldActive(field, answers));
+  const visibleFields = fields.filter((field) => isFieldActive(field, answers, fields));
 
   function validateDetails() {
     const next: Record<string, string> = {};
@@ -478,7 +478,7 @@ export function RegistrationForm({
               aria-invalid={Boolean(errors.email) || undefined}
               aria-describedby={errors.email ? "email-error" : undefined}
               autoComplete="email"
-              placeholder="you@somaiya.edu"
+              placeholder="you@email.com"
             />
             {errors.email ? <FieldError id="email-error">{errors.email}</FieldError> : null}
           </div>

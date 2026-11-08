@@ -51,6 +51,11 @@ export type TemplatePayload = {
    */
   community?: { url: string; label: string; reason: string } | null;
   /**
+   * Mirrors `event-features.whatsapp`. False means no WhatsApp button at all —
+   * not even the default S4DS group that "approved" otherwise falls back to.
+   */
+  whatsapp?: boolean;
+  /**
    * Per-event "you've been selected" copy and links (form, rulebook, …) for
    * the "approved" email — see `@/config/selection`. Absent means the plain
    * "You're in" email.
@@ -156,7 +161,7 @@ function textDetails(payload: TemplatePayload) {
     ...(payload.venue ? [`Where: ${payload.venue}`] : []),
     `Code:  ${payload.code}`,
     "",
-    `Your ticket: ${payload.ticket_url}`,
+    `${payload.has_ticket === false ? "Your registration" : "Your ticket"}: ${payload.ticket_url}`,
   ].join("\n");
 }
 
@@ -170,10 +175,13 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
       // telling them "we're checking your payment" would just be wrong.
       const awaitingPayment = Boolean(payload.fee_label);
       const subject = `Registered - ${payload.event_title}`;
+      const hasTicket = payload.has_ticket !== false;
       const statusLine = payload.pending
         ? awaitingPayment
           ? "Someone from the team is checking your payment. You'll get your ticket and QR code once your registration is approved."
-          : "Your registration is under review. We'll email you once it's approved — no ticket or QR yet."
+          : hasTicket
+            ? "Your registration is under review. We'll email you once it's approved — no ticket or QR yet."
+            : "Your registration is under review. We'll email you once it's approved. Keep your code above for reference."
         : awaitingPayment
           ? "Someone from the team is checking your payment. Your QR code goes live once that's done. Keep this link, it's your ticket."
           : "You're confirmed. Keep this link, it's your ticket.";
@@ -183,7 +191,9 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
           `<p style="margin:0 0 4px;">We've got your registration for <strong>${escapeHtml(payload.event_title)}</strong>.</p>`,
           details(payload),
           `<p style="margin:0;">${statusLine}</p>`,
-          button(payload.ticket_url, "Open my ticket"),
+          // A no-ticket event has nothing to "open" as a ticket — the link is
+          // just their registration page with the code.
+          button(payload.ticket_url, hasTicket ? "Open my ticket" : "View my registration"),
           payload.refund_terms
             ? `<p style="margin:0;font-size:13px;color:#666666;">${escapeHtml(payload.refund_terms)}</p>`
             : "",
@@ -229,11 +239,14 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
     case "approved": {
       // Every event gets a WhatsApp button here — `community` just lets a
       // specific event point at its own group instead of the default one.
-      const group = payload.community ?? {
-        url: "https://chat.whatsapp.com/GmtWbCfG65hGl8kPvNRxZZ?s=cl&p=a&ilr=1",
-        label: "Join WhatsApp Group",
-        reason: "Join our WhatsApp group for further details.",
-      };
+      const group =
+        payload.whatsapp === false
+          ? null
+          : (payload.community ?? {
+              url: "https://chat.whatsapp.com/GmtWbCfG65hGl8kPvNRxZZ?s=cl&p=a&ilr=1",
+              label: "Join WhatsApp Group",
+              reason: "Join our WhatsApp group for further details.",
+            });
       // `has_ticket` mirrors event-features.ticket — false means this event
       // issues no QR at all, so showing one here (or telling someone to show
       // it at a door with no scanner) would just be wrong.
@@ -245,7 +258,7 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
 
       return {
         subject: selection
-          ? `Selected - ${payload.event_title}`
+          ? `${selection.subject ?? "Selected"} - ${payload.event_title}`
           : `You're in - ${payload.event_title}`,
         html: layout(selection ? selection.heading : `You're in, ${escapeHtml(first)}`, [
           selection
@@ -259,7 +272,7 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
             ? `<p style="margin:18px 0 0;font-weight:700;color:#111111;">Before the day</p>${linkList(selection.links)}`
             : "",
           // cid:whatsapp-icon is attached in worker.ts whenever this renders.
-          communityButton(group),
+          group ? communityButton(group) : "",
           selection?.outro?.length
             ? `<div style="margin:18px 0 0;">${selection.outro
                 .map((line) => `<p style="margin:0 0 12px;">${escapeHtml(line)}</p>`)
@@ -290,9 +303,7 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
                 "",
               ]
             : []),
-          `${group.label}: ${group.url}`,
-          group.reason,
-          "",
+          ...(group ? [`${group.label}: ${group.url}`, group.reason, ""] : []),
           ...(selection?.outro ?? []).flatMap((line) => [line, ""]),
           hasTicket ? "Show the QR on your ticket page at the door." : "",
         ].join("\n"),
