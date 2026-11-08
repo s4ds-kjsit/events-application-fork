@@ -16,7 +16,8 @@ export type TemplateName =
   | "approved"
   | "rejected"
   | "ticket"
-  | "certificate";
+  | "certificate"
+  | "knowbuild_certificate";
 
 export type TemplatePayload = {
   name: string;
@@ -55,6 +56,14 @@ export type TemplatePayload = {
    * "You're in" email.
    */
   selection?: SelectionInfo | null;
+  /**
+   * "knowbuild_certificate" only — the team this email's certificates belong
+   * to. One email, one team: it goes to the leader and every member at once,
+   * with one certificate PDF attached per person (see `members`).
+   */
+  team_name?: string;
+  /** "knowbuild_certificate" only — everyone a certificate gets generated for. */
+  members?: { name: string }[];
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -324,6 +333,36 @@ export function renderEmail(template: TemplateName, payload: TemplatePayload): R
           button(payload.ticket_url, "Open my ticket"),
         ].join("")),
         text: [`Here's your ticket.`, "", textDetails(payload)].join("\n"),
+      };
+    }
+
+    case "knowbuild_certificate": {
+      const team = payload.team_name?.trim() || "your team";
+      return {
+        subject: "Certificates of Participation - KnowBuild 2.0",
+        html: layout("Certificates of Participation", [
+          `<p style="margin:0 0 12px;">Dear Team ${escapeHtml(team)},</p>`,
+          `<p style="margin:0 0 12px;">Thank you for participating in <strong>KnowBuild 2.0</strong>, organized by the Society for Data Science (S4DS), KJSIT.</p>`,
+          `<p style="margin:0 0 12px;">We truly appreciate your enthusiasm, effort, and contribution to making the hackathon a success. We hope you enjoyed the experience, learned something new, and had a great time building and innovating with us.</p>`,
+          `<p style="margin:0 0 12px;">Please find your Certificate of Participation attached to this email.</p>`,
+          `<p style="margin:0 0 12px;">Thank you once again for being a part of KnowBuild 2.0. We look forward to seeing you at our future events!</p>`,
+          `<p style="margin:0;">Best regards,<br>Team S4DS<br>KJSIT</p>`,
+        ].join("")),
+        text: [
+          `Dear Team ${team},`,
+          "",
+          "Thank you for participating in KnowBuild 2.0, organized by the Society for Data Science (S4DS), KJSIT.",
+          "",
+          "We truly appreciate your enthusiasm, effort, and contribution to making the hackathon a success. We hope you enjoyed the experience, learned something new, and had a great time building and innovating with us.",
+          "",
+          "Please find your Certificate of Participation attached to this email.",
+          "",
+          "Thank you once again for being a part of KnowBuild 2.0. We look forward to seeing you at our future events!",
+          "",
+          "Best regards,",
+          "Team S4DS",
+          "KJSIT",
+        ].join("\n"),
       };
     }
 

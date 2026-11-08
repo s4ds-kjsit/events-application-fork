@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email/send";
 import { renderEmail, type TemplateName, type TemplatePayload } from "@/lib/email/templates";
 import { WHATSAPP_ICON_PNG } from "@/lib/email/assets";
 import { generateCertificatePdf } from "@/lib/certificates/generate";
+import { generateKnowbuildCertificatePdf } from "@/lib/certificates/generate-knowbuild";
 
 /**
  * Drains the email queue once.
@@ -112,6 +113,21 @@ async function attachmentsFor(
         contentType: "application/pdf",
       },
     ];
+  }
+
+  // One PDF per teammate — this is a single email to the whole team, not one
+  // job per person, so every name in `members` gets its own attachment.
+  if (template === "knowbuild_certificate") {
+    const members = payload.members ?? [];
+    return Promise.all(
+      members.map(async (member) => ({
+        filename: `${member.name.replace(/\s+/g, "_")}_KnowBuild_2.0_Certificate.pdf`,
+        content: Buffer.from(
+          await generateKnowbuildCertificatePdf(member.name, payload.team_name ?? ""),
+        ),
+        contentType: "application/pdf",
+      })),
+    );
   }
 
   return undefined;

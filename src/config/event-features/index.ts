@@ -79,6 +79,10 @@ const OVERRIDES: Record<string, Partial<EventFeatures>> = {
     // what people are pointed at instead, on the ticket page and in email.
     ticket: false,
   },
+  "devops-workshop": {
+    // Online session: there's no door to scan a QR at.
+    ticket: false,
+  },
 };
 
 export function getEventFeatures(slug: string): EventFeatures {

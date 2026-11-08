@@ -41,6 +41,14 @@ export const SPEAKERS: Record<string, Speaker[]> = {
       portfolio: "https://mariakevin.in/",
     },
   ],
+  "devops-workshop": [
+    {
+      name: "Pratik Parikh",
+      role: "DevOps Engineer, Simbian",
+      photo: "/speakers/pratik-parikh.jpg",
+      linkedin: "https://www.linkedin.com/in/parikh-pratik/",
+    },
+  ],
 };
 
 /**

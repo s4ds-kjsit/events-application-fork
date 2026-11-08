@@ -466,6 +466,91 @@ export const FORMS = {
     },
   ],
 
+  /**
+   * DevOps Workshop — online, open to the public, 14 Nov 2026.
+   *
+   * `role` reuses the key (and the first two options) from "open-public", the
+   * form this event launched with, so early answers stay in the same column.
+   * Students and professionals then see different follow-ups via `showIf`.
+   *
+   * `devops_familiarity` is for an overview of the audience: it tells the
+   * speaker how much of the basics to cover.
+   */
+  "devops-workshop": [
+    {
+      key: "role",
+      label: "You are a",
+      type: "radio",
+      required: true,
+      options: ["Student", "Working professional"],
+    },
+
+    // --- working professional ------------------------------------------------
+    {
+      key: "company",
+      label: "Company",
+      type: "text",
+      required: true,
+      showIf: { key: "role", oneOf: ["Working professional"] },
+    },
+    {
+      key: "position",
+      label: "Position",
+      type: "text",
+      required: true,
+      placeholder: "e.g. Software Engineer",
+      showIf: { key: "role", oneOf: ["Working professional"] },
+    },
+
+    // --- student -------------------------------------------------------------
+    {
+      key: "college",
+      label: "College name",
+      type: "text",
+      required: true,
+      showIf: { key: "role", oneOf: ["Student"] },
+    },
+    {
+      key: "branch",
+      label: "Branch",
+      type: "text",
+      required: true,
+      placeholder: "e.g. Computer Engineering",
+      showIf: { key: "role", oneOf: ["Student"] },
+    },
+    {
+      key: "year",
+      label: "Year of study",
+      type: "radio",
+      required: true,
+      options: ["FY", "SY", "TY", "LY", "Postgraduate"],
+      showIf: { key: "role", oneOf: ["Student"] },
+    },
+
+    // --- everyone --------------------------------------------------------------
+    {
+      key: "devops_familiarity",
+      label: "How familiar are you with DevOps?",
+      type: "radio",
+      required: true,
+      options: [
+        "New to it - never heard of it until now",
+        "Heard of it, but never tried anything",
+        "Tried Docker or CI/CD on my own",
+        "Use DevOps tools in projects or at work",
+        "Work in DevOps day to day",
+      ],
+      hint: "Helps the speaker decide how much of the basics to cover.",
+    },
+    {
+      key: "speaker_question",
+      label: "Any question for the speaker?",
+      type: "textarea",
+      required: false,
+      placeholder: "Something you'd like Pratik to cover or answer during the session.",
+    },
+  ],
+
   /** Nothing beyond name/email/phone */
   minimal: [],
 } as const satisfies Record<string, readonly FieldDef[]>;
