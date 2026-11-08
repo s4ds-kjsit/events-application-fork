@@ -71,8 +71,16 @@ export async function enqueueEmail(job: {
   }
 }
 
-/** Builds the absolute ticket URL used in every template. */
+/**
+ * Builds the absolute ticket URL used in every template.
+ *
+ * Deliberately NOT `NEXT_PUBLIC_APP_URL`: that's localhost in a dev `.env`, and
+ * the dev server writes to the same database real people register through, so
+ * an email queued while testing locally would land in a real inbox with a
+ * localhost link baked into its snapshot. Emails always point at the public
+ * site; set EMAIL_LINK_BASE_URL only to send them somewhere else on purpose.
+ */
 export function ticketUrl(code: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = process.env.EMAIL_LINK_BASE_URL || "https://s4ds-events.kjsit.org";
   return `${base.replace(/\/$/, "")}/t/${code}`;
 }
