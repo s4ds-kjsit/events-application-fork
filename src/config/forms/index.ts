@@ -554,6 +554,22 @@ export const FORMS = {
       hint: "Helps the speaker decide how much of the basics to cover.",
     },
     {
+      // Added after ~29 people had registered; their rows show this as blank.
+      key: "s4ds_member",
+      label: "Are you an S4DS member?",
+      type: "radio",
+      required: true,
+      options: ["Yes", "No"],
+    },
+    {
+      key: "s4ds_membership_type",
+      label: "S4DS membership type",
+      type: "radio",
+      required: true,
+      options: ["Student", "Professional", "Faculty"],
+      showIf: { key: "s4ds_member", oneOf: ["Yes"] },
+    },
+    {
       key: "speaker_question",
       label: "Any question for the speaker?",
       type: "textarea",
