@@ -72,9 +72,7 @@ export const SELECTION_INFO: Record<string, SelectionInfo> = {
     ],
     links: [
       {
-        // TODO: paste the meeting link BEFORE approving anyone. An empty url is
-        // skipped, and approval emails snapshot this when they're queued.
-        url: "",
+        url: "https://meet.google.com/yck-yxav-gtk",
         label: "Join the session",
         note: "Saturday, 14 November, 10:00 AM - 12:00 PM IST. Please join 5 minutes early.",
       },
