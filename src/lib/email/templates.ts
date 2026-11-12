@@ -122,11 +122,49 @@ function communityButton(group: { url: string; label: string; reason: string }) 
   <p style="margin:12px 0 0;font-size:13px;color:#666666;">${escapeHtml(group.reason)}</p>`;
 }
 
+/**
+ * Is this a Google Meet room? Decides both the highlighted button below and,
+ * in worker.ts, whether `cid:gmeet-icon` gets attached — one function so the
+ * two can't disagree about when the logo appears.
+ */
+export function isMeetLink(url: string): boolean {
+  try {
+    return new URL(url).hostname === "meet.google.com";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A meeting link is the one thing an online attendee must not miss, so it gets
+ * a solid Google-blue button with the Meet logo instead of a text link. The
+ * logo sits on a white tile because its colours vanish against the blue.
+ * `cid:gmeet-icon` is attached in worker.ts whenever this renders.
+ */
+function meetButton(link: SelectionInfo["links"][number]) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:14px 0 0;">
+    <tr><td style="background:#1a73e8;border-radius:10px;padding:8px 22px 8px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="background:#ffffff;border-radius:7px;padding:8px 9px;line-height:0;">
+          <a href="${link.url}"><img src="cid:gmeet-icon" alt="Google Meet" width="24" height="20" style="display:block;border:0;"></a>
+        </td>
+        <td style="padding-left:14px;">
+          <a href="${link.url}" style="color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">${escapeHtml(link.label)}</a>
+        </td>
+      </tr></table>
+    </td></tr>
+  </table>
+  <p style="margin:8px 0 0;font-size:13px;color:#666666;">${escapeHtml(link.note)}</p>
+  <p style="margin:2px 0 0;font-size:12px;color:#999999;word-break:break-all;">${escapeHtml(link.url)}</p>`;
+}
+
 /** The form / rulebook / floor-rules list on a selection email. */
 function linkList(links: SelectionInfo["links"]) {
   return links
-    .map(
-      (link) => `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:12px 0 0;border:1px solid #e5e5e5;border-radius:8px;">
+    .map((link) =>
+      isMeetLink(link.url)
+        ? meetButton(link)
+        : `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:12px 0 0;border:1px solid #e5e5e5;border-radius:8px;">
   <tr><td style="padding:12px 14px;">
     <a href="${link.url}" style="font-size:15px;font-weight:700;color:#111111;text-decoration:underline;">${escapeHtml(link.label)} &rarr;</a>
     <p style="margin:4px 0 0;font-size:13px;color:#666666;">${escapeHtml(link.note)}</p>

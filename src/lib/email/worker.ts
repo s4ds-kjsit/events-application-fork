@@ -2,8 +2,8 @@ import "server-only";
 import QRCode from "qrcode";
 import { db } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email/send";
-import { renderEmail, type TemplateName, type TemplatePayload } from "@/lib/email/templates";
-import { WHATSAPP_ICON_PNG } from "@/lib/email/assets";
+import { isMeetLink, renderEmail, type TemplateName, type TemplatePayload } from "@/lib/email/templates";
+import { GMEET_ICON_PNG, WHATSAPP_ICON_PNG } from "@/lib/email/assets";
 import { generateCertificatePdf } from "@/lib/certificates/generate";
 import { generateKnowbuildCertificatePdf } from "@/lib/certificates/generate-knowbuild";
 
@@ -93,6 +93,10 @@ async function attachmentsFor(
     // has_ticket === false means this event issues no QR at all (see
     // event-features.ticket) — the template already skips the <img
     // src="cid:ticket-qr">, so attaching one anyway would just be dead weight.
+    // Same test meetButton() in templates.ts uses to decide it renders.
+    if (payload.selection?.links.some((link) => isMeetLink(link.url))) {
+      attachments.push({ filename: "google-meet.png", content: GMEET_ICON_PNG, cid: "gmeet-icon" });
+    }
     if (payload.has_ticket !== false) {
       attachments.push({ filename: "ticket-qr.png", content: await qrPng(payload), cid: "ticket-qr" });
     }
