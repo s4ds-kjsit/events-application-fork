@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { summariseAnswers, type Slice } from "@/lib/responses-summary";
 import { RegistrationsTable, type Row } from "./RegistrationsTable";
 import { ResponsesSummary } from "./ResponsesSummary";
+import { ApproveAllButton } from "./ApproveAllButton";
 
 export const dynamic = "force-dynamic";
 
@@ -215,6 +216,10 @@ export default async function EventRegistrationsPage({ params, searchParams }: P
         total={inScope.length}
         scope={FILTERS.find((f) => f.key === filter)!.label}
       />
+
+      {filter === "PENDING" ? (
+        <ApproveAllButton slug={event.slug} ids={rows.map((row) => row.id)} />
+      ) : null}
 
       <RegistrationsTable rows={rows} fields={fields} />
     </div>
