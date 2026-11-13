@@ -1,16 +1,29 @@
 /**
- * Dev-only email worker.
+ * In-process email worker — the thing that actually sends queued mail.
  *
- * In production Netlify runs a scheduled function every minute, so queued mail
- * sends itself. On localhost there is no scheduler, which made registering look
- * like "the email never sent" when it was really just sitting in the queue.
+ * Registration only writes a row to `email_jobs`; something has to drain it.
+ * On Netlify that was a scheduled function, but the app now runs as a
+ * long-lived `next start` on a VPS, where nothing calls the cron route on its
+ * own — mail sat queued until someone pressed "send all" in admin. So the
+ * server drains the queue itself, the same way in dev and in production.
  *
- * This runs the same drain loop in the dev server so local behaves like prod.
+ * Set EMAIL_WORKER=off to disable it (for example on a local dev server that
+ * shouldn't send real mail from the production queue). Several instances
+ * running this at once is safe: claim_email_jobs uses FOR UPDATE SKIP LOCKED,
+ * so each job is claimed by exactly one of them.
+ *
+ * Certificates are deliberately left out (processEmailQueue's default) — they
+ * are sent by hand from admin, never automatically.
  */
 export async function register() {
   // instrumentation also loads in the edge runtime, where none of this works.
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  if (process.env.NODE_ENV !== "development") return;
+  // `next build` loads this too; a timer there would hold the build open.
+  if (process.env.NEXT_PHASE === "phase-production-build") return;
+  if (process.env.EMAIL_WORKER === "off") {
+    console.log("[email] worker off (EMAIL_WORKER=off) — queued mail won't send from this server");
+    return;
+  }
 
   const { processEmailQueue } = await import("@/lib/email/worker");
 
@@ -28,13 +41,14 @@ export async function register() {
         console.log(`[email] sent ${sent}, failed ${failed}`);
       }
     } catch (error) {
-      // Never crash the dev server over this — a missing Gmail password
-      // shouldn't stop someone working on the registration form.
+      // Never crash the server over this — a missing Gmail password or a
+      // database blip shouldn't take registrations down with it. The next
+      // tick retries.
       console.error("[email] drain failed:", error instanceof Error ? error.message : error);
     } finally {
       running = false;
     }
   }, INTERVAL_MS).unref?.();
 
-  console.log(`[email] dev worker on — draining the queue every ${INTERVAL_MS / 1000}s`);
+  console.log(`[email] worker on — draining the queue every ${INTERVAL_MS / 1000}s`);
 }

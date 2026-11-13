@@ -238,6 +238,8 @@ Netlify was chosen for CI/CD, and it does that well — but it is not Vercel, an
 
 **2. No Vercel Cron.** A **Netlify Scheduled Function** ([`netlify/functions/process-emails.ts`](../netlify/functions/process-emails.ts)) calls our route handler every minute, so all the queue logic stays in normal Next.js code that can be run and tested locally.
 
+> **Update (Nov 2026): the app now runs on a VPS (`next start`), not Netlify**, so the scheduled function above no longer runs. The server drains the queue itself every 15s from [`src/instrumentation.ts`](../src/instrumentation.ts) — set `EMAIL_WORKER=off` to stop a given server from sending. `/api/cron/process-emails` still works for a manual or external trigger.
+
 **3. Function timeout is short** (~10s default, ~26s max depending on plan — verify yours). This is the biggest constraint on the email worker:
 
 - Each run claims **at most 5 jobs** via `claim_email_jobs(5)`. Gmail SMTP takes ~1–2s per message.
